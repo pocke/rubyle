@@ -20,6 +20,7 @@ PLATFORMS
 DEPENDENCIES
   opal
   ovto
+  parser
 
 BUNDLED WITH
    2.3.7
