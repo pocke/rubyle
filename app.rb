@@ -102,7 +102,7 @@ module Rubyle
             ep = l.end_pos
 
             o 'span', code[written_pos...bp] if written_pos < bp
-            o "span.#{h[1]}", code[bp..ep]
+            o "span.#{h[1]}", code[bp...ep]
             written_pos = ep
           end
           o 'span', code[written_pos..-1] if written_pos < code.size-1
