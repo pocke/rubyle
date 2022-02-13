@@ -5,3 +5,4 @@ source "https://rubygems.org"
 gem 'opal'
 gem 'ovto'
 gem 'parser'
+gem 'rake'
