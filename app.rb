@@ -4,6 +4,8 @@ require 'parser/current'
 require 'opal/parser/patch'
 require 'corelib/string/unpack'
 
+require_relative 'hint'
+
 module Rubyle
   Alert = Struct.new(:type, :message, keyword_init: true)
 
@@ -23,9 +25,13 @@ module Rubyle
         fibo 10
       RUBY
       item :alert, default: nil
+
+      item :hints, default: Hint::State.new
     end
 
     class Actions < Ovto::Actions
+      include Hint::Actions
+
       def submit(value:)
         return { user_inputs: [*state.user_inputs, value] }
       end
@@ -54,6 +60,8 @@ module Rubyle
             onkeydown: -> (ev) { on_submit(ev) },
           }
 
+          o Hint::Switcher
+          o Hint::Display
           o AlertComponent if state.alert
         end
       end
@@ -116,6 +124,8 @@ module Rubyle
       o "div.alert-#{state.alert.type}", state.alert.message
     end
   end
+
+
 
   class RubyParser < Parser::CurrentRuby
     def self.default_parser

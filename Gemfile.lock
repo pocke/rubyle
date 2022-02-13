@@ -2,6 +2,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.2)
+    ifchanged (1.0.1)
     opal (1.4.1)
       ast (>= 2.3.0)
       parser (~> 3.0, >= 3.0.3.2)
@@ -19,6 +20,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  ifchanged
   opal
   ovto
   parser
