@@ -1,12 +1,15 @@
 require 'ovto'
+require 'native'
 require 'parser/current'
+require 'opal/parser/patch'
 require 'corelib/string/unpack'
 
 module Rubyle
+  Alert = Struct.new(:type, :message, keyword_init: true)
+
   class App < Ovto::App
     class State < Ovto::State
       item :user_inputs, default: []
-      item :current_input, default: ''
       item :game_clear, default: false
       item :result, default: <<~RUBY
         def fibo(n)
@@ -19,15 +22,20 @@ module Rubyle
 
         fibo 10
       RUBY
+      item :alert, default: nil
     end
 
     class Actions < Ovto::Actions
-      def update_current_input(value:)
-        return { current_input: value }
-      end
-
       def submit(value:)
         return { user_inputs: [*state.user_inputs, value] }
+      end
+
+      def set_alert(message:, type:)
+        return { alert: Alert.new(message: message, type: type) }
+      end
+
+      def reset_alert
+        return { alert: nil }
       end
     end
 
@@ -36,22 +44,34 @@ module Rubyle
         o 'div' do
           o 'ol' do
             state.user_inputs.each do |code|
-              o 'li' do
+              o 'li.guess-item' do
                 o HighlightedUserInput, code: code, result: state.result
               end
             end
           end
 
           o 'textarea', {
-            onchange: -> (ev) { actions.update_current_input(value: ev.target.value) },
-            onkeydown: -> (ev) do
-              if ev.key == 'Enter' && ev.ctrlKey
-                actions.submit(value: ev.target.value)
-              end
-            end,
-            value: state.current_input,
+            onkeydown: -> (ev) { on_submit(ev) },
           }
+
+          o AlertComponent if state.alert
         end
+      end
+
+      def on_submit(ev)
+        return unless ev.key == 'Enter' && ev.ctrlKey
+
+        ev.preventDefault
+        code = ev.target.value
+        begin
+          RubyParser.parse(code)
+        rescue Parser::SyntaxError => ex
+          actions.set_alert(message: "SyntaxError: #{ex.message}", type: :error)
+          Util.set_timeout(5000) { actions.reset_alert }
+          return
+        end
+
+        actions.submit(value: code)
       end
     end
   end
@@ -61,7 +81,7 @@ module Rubyle
       result_nodes = Util.to_nodes(result)
       highlights = []
 
-      ast = Parser::CurrentRuby.parse(code)
+      ast = RubyParser.parse(code)
       Util.traverse(ast) do |node, path|
         yellow = result_nodes.any? { |r| r[0] == node }
         green = yellow && result_nodes.any? { |r| r == [node, path] }
@@ -73,7 +93,7 @@ module Rubyle
         end
       end
 
-      o 'pre' do
+      o 'pre.guess' do
         o 'code' do
           written_pos = 0
           while h = highlights.shift
@@ -91,11 +111,25 @@ module Rubyle
     end
   end
 
+  class AlertComponent < Ovto::Component
+    def render
+      o "div.alert-#{state.alert.type}", state.alert.message
+    end
+  end
+
+  class RubyParser < Parser::CurrentRuby
+    def self.default_parser
+      super.tap do |p|
+        p.diagnostics.consumer = nil
+      end
+    end
+  end
+
   module Util
     # type path = Array[Symbol | Integer]
     # () -> Array[[Parser::Node, path]]
     def self.to_nodes(code)
-      ast = Parser::CurrentRuby.parse(code)
+      ast = RubyParser.parse(code)
       res = []
       traverse(ast) do |node, path|
         res << [node, path]
@@ -110,6 +144,12 @@ module Rubyle
       node.children.each.with_index do |c, idx|
         traverse(c, [*path, node.type, idx], &block) if c.is_a?(Parser::AST::Node)
       end
+    end
+
+    def self.set_timeout(msec, &block)
+      %x{
+        window.setTimeout(#{block.to_n}, #{msec})
+      }
     end
   end
 end
