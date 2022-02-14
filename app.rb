@@ -14,15 +14,15 @@ module Rubyle
       item :user_inputs, default: []
       item :game_clear, default: false
       item :result, default: <<~RUBY
-        def fibo(n)
+        def f(n)
           if n <= 2
             1
           else
-            fibo(n - 1) + fibo(n - 2)
+            f(n - 1) + f(n - 2)
           end
         end
 
-        fibo 10
+        puts f 10
       RUBY
       item :alert, default: nil
 
@@ -113,7 +113,7 @@ module Rubyle
             o "span.#{h[1]}", code[bp...ep]
             written_pos = ep
           end
-          o 'span', code[written_pos..-1] if written_pos < code.size-1
+          o 'span', code[written_pos..-1] if written_pos < code.size
         end
       end
     end
